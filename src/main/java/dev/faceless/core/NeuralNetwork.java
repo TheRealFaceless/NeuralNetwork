@@ -20,10 +20,10 @@ public class NeuralNetwork {
 
     private double learningRate = 0.01;
     private double momentum = 0.5;
-    private ActivationFunction activationFunction = ActivationFunction.SIGMOID; // default activation function
+    private ActivationFunction activationFunction = ActivationFunction.SIGMOID;
     private boolean initialized = false;
 
-    Logger logger = Logger.getLogger();
+    private final Logger logger = Logger.getLogger();
 
     public NeuralNetwork(int inputSize, int hiddenSize, int outputSize) {
         this.inputSize = inputSize;
@@ -77,6 +77,10 @@ public class NeuralNetwork {
     }
 
     private void backward(double[] targets) {
+        if(outputSize != targets.length) {
+            logger.logError("Output mismatch, output size is " + outputSize + " but " + targets.length + " is provided.");
+            throw new RuntimeException();
+        }
         int i = 0;
         for (Neuron neuron : outputLayer) {
             neuron.calculateGradient(targets[i++]);
@@ -93,6 +97,10 @@ public class NeuralNetwork {
     }
 
     private void forward(double[] inputs) {
+        if(inputSize != inputs.length) {
+            logger.logError("Input mismatch, input size is " + inputSize + " but " + inputs.length + " is provided.");
+            throw new RuntimeException();
+        }
         int i = 0;
         for (Neuron neuron : inputLayer) {
             neuron.setOutput(inputs[i++]);
