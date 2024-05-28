@@ -1,82 +1,128 @@
 package dev.faceless.core;
 
+import dev.faceless.core.logger.Logger;
+
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
+@SuppressWarnings("unused")
 public class NeuralNetwork {
-    private final ArrayList<Layer> layers;
 
-    public NeuralNetwork(Functions function, int... numNodesPerLayer) {
-        if (numNodesPerLayer.length < 2) {
-            throw new IllegalArgumentException("At least two layers are required");
+    private final int inputSize;
+    private final int hiddenSize;
+    private final int outputSize;
+
+    private final List<Neuron> inputLayer;
+    private final List<Neuron> hiddenLayer;
+    private final List<Neuron> outputLayer;
+
+    private double learningRate = 0.01;
+    private double momentum = 0.5;
+    private ActivationFunction activationFunction = ActivationFunction.SIGMOID; // default activation function
+    private boolean initialized = false;
+
+    Logger logger = Logger.getLogger();
+
+    public NeuralNetwork(int inputSize, int hiddenSize, int outputSize) {
+        this.inputSize = inputSize;
+        this.hiddenSize = hiddenSize;
+        this.outputSize = outputSize;
+        this.inputLayer = new ArrayList<>();
+        this.hiddenLayer = new ArrayList<>();
+        this.outputLayer = new ArrayList<>();
+    }
+
+    public void setLearningRate(double learningRate) {
+        this.learningRate = learningRate;
+    }
+
+    public void setMomentum(double momentum) {
+        this.momentum = momentum;
+    }
+
+    public void setActivationFunction(ActivationFunction activationFunction) {
+        this.activationFunction = activationFunction;
+    }
+
+    public void init() {
+        for (int i = 0; i < inputSize; i++) {
+            this.inputLayer.add(new Neuron());
         }
-        layers = new ArrayList<>();
-        for (int i = 0; i < numNodesPerLayer.length - 1; i++) {
-            layers.add(new Layer(function, numNodesPerLayer[i + 1], numNodesPerLayer[i]));
+        for (int i = 0; i < hiddenSize; i++) {
+            this.hiddenLayer.add(new Neuron(this.inputLayer, activationFunction));
+        }
+        for (int i = 0; i < outputSize; i++) {
+            this.outputLayer.add(new Neuron(this.hiddenLayer, activationFunction));
+        }
+        this.initialized = true;
+        logger.logInfo("Network Initialized.");
+    }
+
+    public void train(MLDataSet set, int epoch) {
+        if (!initialized){
+            this.init();
+        }
+        logger.logInfo("Training Started");
+        for (int i = 0; i < epoch; i++) {
+            Collections.shuffle(set.getData());
+
+            for (MLData datum : set.getData()) {
+                forward(datum.getInputs());
+                backward(datum.getTargets());
+            }
+        }
+        logger.logInfo("Training Finished.");
+    }
+
+    private void backward(double[] targets) {
+        int i = 0;
+        for (Neuron neuron : outputLayer) {
+            neuron.calculateGradient(targets[i++]);
+        }
+        for (Neuron neuron : hiddenLayer) {
+            neuron.calculateGradient();
+        }
+        for (Neuron neuron : hiddenLayer) {
+            neuron.updateConnections(learningRate, momentum);
+        }
+        for (Neuron neuron : outputLayer) {
+            neuron.updateConnections(learningRate, momentum);
         }
     }
 
-    public double[] feedForward(double[] inputs) {
-        double[] intermediateOutput = inputs;
-        for (Layer layer : layers) {
-            intermediateOutput = layer.feedForward(intermediateOutput);
+    private void forward(double[] inputs) {
+        int i = 0;
+        for (Neuron neuron : inputLayer) {
+            neuron.setOutput(inputs[i++]);
         }
-        return intermediateOutput;
+        for (Neuron neuron : hiddenLayer) {
+            neuron.calculateOutput();
+        }
+        for (Neuron neuron : outputLayer) {
+            neuron.calculateOutput();
+        }
     }
 
-    public void backpropagate(double[] inputs, double[] targets, double learningRate) {
-        double[][] layerOutputs = new double[layers.size()][];
-        double[] intermediateOutput = inputs;
-        for (int i = 0; i < layers.size(); i++) {
-            intermediateOutput = layerOutputs[i] = layers.get(i).feedForward(intermediateOutput);
+    public double[] predict(double... inputs) {
+        forward(inputs);
+        double[] output = new double[outputLayer.size()];
+        for (int i = 0; i < output.length; i++) {
+            output[i] = outputLayer.get(i).getOutput();
         }
+        logger.logInfo("Input : " + Arrays.toString(inputs) + " Predicted : " + Arrays.toString(output));
+        return output;
+    }
 
-        double[][] layerErrors = new double[layers.size()][];
-        for (int i = layers.size() - 1; i >= 0; i--) {
-            Layer layer = layers.get(i);
-            double[] errors = new double[layer.getNodes().size()];
-            if (i == layers.size() - 1) {
-                List<Node> nodes = layer.getNodes();
-                for (int j = 0; j < nodes.size(); j++) {
-                    double output = layerOutputs[i][j];
-                    double target = targets[j];
-                    double error = output * (1 - output) * (target - output);
-                    errors[j] = error;
-                }
-            } else {
-                Layer nextLayer = layers.get(i + 1);
-                List<Node> nodes = layer.getNodes();
-                for (int j = 0; j < nodes.size(); j++) {
-                    double output = layerOutputs[i][j];
-                    double sumOfErrorsTimesWeights = 0;
-                    double[] nextLayerErrors = layerErrors[i + 1];
-                    for (int k = 0; k < nextLayer.getNodes().size(); k++) {
-                        sumOfErrorsTimesWeights += nextLayer.getNodes().get(k).getWeights()[j] * nextLayerErrors[k];
-                    }
-                    double error = output * (1 - output) * sumOfErrorsTimesWeights;
-                    errors[j] = error;
-                }
-            }
-            layerErrors[i] = errors;
+    public double[] predict(boolean round, double... inputs) {
+        forward(inputs);
+        double[] output = new double[outputLayer.size()];
+        for (int i = 0; i < output.length; i++) {
+            if(round) output[i] = Math.round(outputLayer.get(i).getOutput());
+            else output[i] = outputLayer.get(i).getOutput();
         }
-
-        // Set
-        for (int i = 0; i < layers.size(); i++) {
-            Layer layer = layers.get(i);
-            List<Node> nodes = layer.getNodes();
-            double[] errors = layerErrors[i];
-            double[] inputToUse = (i == 0) ? inputs : layerOutputs[i - 1];
-            for (int j = 0; j < nodes.size(); j++) {
-                Node node = nodes.get(j);
-                double[] weights = node.getWeights();
-                double bias = node.getBias();
-                for (int k = 0; k < weights.length; k++) {
-                    double newWeight = weights[k] + learningRate * errors[j] * inputToUse[k];
-                    weights[k] = newWeight;
-                }
-                double newBias = bias + learningRate * errors[j];
-                node.setBias(newBias);
-            }
-        }
+        logger.logInfo("Input : " + Arrays.toString(inputs) + " Predicted : " + Arrays.toString(output));
+        return output;
     }
 }
