@@ -67,12 +67,11 @@ public class NeuralNetwork {
         logger.logInfo("Training Started");
         for (int i = 0; i < epoch; i++) {
             Collections.shuffle(set.getData());
-
             for (MLData datum : set.getData()) {
                 forward(datum.getInputs());
                 backward(datum.getTargets());
             }
-            if (i % 1000 == 0) logger.logInfo("Epoch " + i + " completed.");
+            if (i % 100 == 0) logger.logInfo("Epoch " + i + " completed.");
         }
         logger.logInfo("Training Finished.");
     }
@@ -82,31 +81,11 @@ public class NeuralNetwork {
             logger.logError("Output mismatch, output size is " + outputSize + " but " + targets.length + " is provided.");
             throw new RuntimeException();
         }
-
-        logger.logInfo("Backward pass started.");
-
         int i = 0;
-        for (Neuron neuron : outputLayer) {
-            neuron.calculateGradient(targets[i++]);
-        }
-        logger.logInfo("Gradients calculated for output layer.");
-
-        for (Neuron neuron : hiddenLayer) {
-            neuron.calculateGradient();
-        }
-        logger.logInfo("Gradients calculated for hidden layer.");
-
-        for (Neuron neuron : hiddenLayer) {
-            neuron.updateConnections(learningRate, momentum);
-        }
-        logger.logInfo("Connections updated for hidden layer.");
-
-        for (Neuron neuron : outputLayer) {
-            neuron.updateConnections(learningRate, momentum);
-        }
-        logger.logInfo("Connections updated for output layer.");
-
-        logger.logInfo("Backward pass finished.");
+        for (Neuron neuron : outputLayer) neuron.calculateGradient(targets[i++]);
+        for (Neuron neuron : hiddenLayer) neuron.calculateGradient();
+        for (Neuron neuron : hiddenLayer) neuron.updateConnections(learningRate, momentum);
+        for (Neuron neuron : outputLayer) neuron.updateConnections(learningRate, momentum);
     }
 
     private void forward(double[] inputs) {
@@ -114,26 +93,10 @@ public class NeuralNetwork {
             logger.logError("Input mismatch, input size is " + inputSize + " but " + inputs.length + " is provided.");
             throw new RuntimeException();
         }
-
-        logger.logInfo("Forward pass started.");
-
         int i = 0;
-        for (Neuron neuron : inputLayer) {
-            neuron.setOutput(inputs[i++]);
-        }
-        logger.logInfo("Outputs set for input layer.");
-
-        for (Neuron neuron : hiddenLayer) {
-            neuron.calculateOutput();
-        }
-        logger.logInfo("Outputs calculated for hidden layer.");
-
-        for (Neuron neuron : outputLayer) {
-            neuron.calculateOutput();
-        }
-        logger.logInfo("Outputs calculated for output layer.");
-
-        logger.logInfo("Forward pass finished.");
+        for (Neuron neuron : inputLayer) neuron.setOutput(inputs[i++]);
+        for (Neuron neuron : hiddenLayer) neuron.calculateOutput();
+        for (Neuron neuron : outputLayer) neuron.calculateOutput();
     }
 
     public double[] predict(double... inputs) {

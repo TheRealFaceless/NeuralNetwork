@@ -20,7 +20,7 @@ public class Main {
         neuralNetwork.setActivationFunction(ActivationFunction.SWISH);
 
         MLDataSet dataSet = new ImageDataSet("dataset");
-        neuralNetwork.train(dataSet, 100000);
+        //neuralNetwork.train(dataSet, 100000);
 
         Scanner scanner = new Scanner(System.in);
         while (true) {

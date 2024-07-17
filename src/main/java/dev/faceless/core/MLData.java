@@ -1,5 +1,7 @@
 package dev.faceless.core;
 
+import java.util.Arrays;
+
 @SuppressWarnings("unused")
 public class MLData {
 
@@ -25,5 +27,10 @@ public class MLData {
 
     public void setTargets(double[] targets) {
         this.targets = targets;
+    }
+
+    @Override
+    public String toString() {
+        return "Input: " + Arrays.toString(inputs) + "\nTarget: " + Arrays.toString(targets);
     }
 }

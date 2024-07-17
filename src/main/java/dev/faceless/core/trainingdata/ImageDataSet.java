@@ -17,6 +17,12 @@ public class ImageDataSet extends MLDataSet {
     public ImageDataSet(String path) {
         super();
         init(path);
+        getData().forEach(mlData -> {
+            System.out.println("-----------------------------------------------------");
+            System.out.println(mlData.toString());
+            System.out.println("-----------------------------------------------------");
+        }
+        );
     }
 
     private void init(String path) {
